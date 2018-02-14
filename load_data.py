@@ -16,39 +16,45 @@ def vectorize(ratings):
 	return counts
 
 
-def load_meta(fn):
-
-	with open(fn, 'rb') as f:
-
-		reader = csv.DictReader(f)
-		# print(reader.fieldnames)
-		meta = {'url':[],'title':[],'views':[],'comments':[],'profile':[]}
-
-		for r in reader:
-			meta['url'].append(r['url'])
-			meta['title'].append(r['title'])
-			meta['views'].append(int(r['views']))
-			meta['comments'].append(int(r['comments']))
-			meta['profile'].append(vectorize(r['ratings']))
-
-		meta['profile'] = np.asarray(meta['profile'])
-
-	return meta
-
-
 def load_talks(fn):
 
 	with open(fn, 'rb') as f:
 
 		reader = csv.DictReader(f)
-		# print(reader.fieldnames)
 		talks = {}
 
 		for r in reader:
-			talks[r['url']] = r['transcript']
+			talks[r['url'].strip()] = r['transcript']
 
 	return talks
 
 
-meta = load_meta('ted_main.csv')
-talks = load_talks('transcripts.csv')
+def load_data(fn):
+
+	talks = load_talks('transcripts.csv')
+
+	with open(fn, 'rb') as f:
+
+		reader = csv.DictReader(f)
+		data = {'url':[],'title':[],'views':[],'comments':[],'profile':[], 'talks':[]}
+
+		for r in reader:
+
+			url = r['url'].strip()
+			
+			if url not in talks:
+				continue
+
+			data['url'].append(url)
+			data['title'].append(r['title'])
+			data['views'].append(int(r['views']))
+			data['comments'].append(int(r['comments']))
+			data['profile'].append(vectorize(r['ratings']))
+			data['talks'].append(talks[url])
+
+		data['profile'] = np.asarray(data['profile'])
+
+	return data
+
+
+data = load_data('ted_main.csv')
