@@ -1,4 +1,6 @@
 __*
 scholar/*
 data.npy
-tf_logs/*
+*tf_logs/*
+*.pyc
+*.pkl
