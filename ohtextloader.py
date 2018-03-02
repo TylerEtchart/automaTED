@@ -3,7 +3,7 @@ import os
 import collections
 from six.moves import cPickle
 import numpy as np
-from ted import TED
+from ted.ted import TED
 
 class TextLoader():
     def __init__(self, data_dir, batch_size, seq_length, encoding='utf-8'):
@@ -12,9 +12,9 @@ class TextLoader():
         self.seq_length = seq_length
         self.encoding = encoding
 
-        input_file = os.path.join(data_dir, "input.txt")
-        vocab_file = os.path.join(data_dir, "vocab.pkl")
-        tensor_file = os.path.join(data_dir, "data.npy")
+        input_file = os.path.join(data_dir, "oh_input.txt")
+        vocab_file = os.path.join(data_dir, "oh_vocab.pkl")
+        tensor_file = os.path.join(data_dir, "oh_data.npy")
 
         # if not (os.path.exists(vocab_file) and os.path.exists(tensor_file)):
         #     print("reading text file")
@@ -32,7 +32,7 @@ class TextLoader():
         # with codecs.open(input_file, "r", encoding=self.encoding) as f:
         #     data = f.read()
 
-        ted = TED()
+        self.ted = TED()
 
         # counter = collections.Counter(data)
         # count_pairs = sorted(counter.items(), key=lambda x: -x[1])
@@ -40,10 +40,10 @@ class TextLoader():
         # self.vocab_size = len(self.chars)
         # self.vocab = dict(zip(self.chars, range(len(self.chars))))
 
-        self.vocab_size = ted.vocab_size
-        self.vocab_list = ted.vocab_list
-        self.vocab = dict(zip(ted.vocab_list, range(ted.vocab_size)))
-        self.tensor = np.array([self.vocab[word] for word in ted.stripped_talks])
+        self.vocab_size = self.ted.vocab_size
+        self.vocab_list = self.ted.vocab_list
+        self.vocab = dict(zip(self.ted.vocab_list, range(self.ted.vocab_size)))
+        self.tensor = np.array([self.vocab[word] for word in self.ted.words])
 
         # with open(vocab_file, 'wb') as f:
         #     cPickle.dump(self.chars, f)
@@ -80,12 +80,18 @@ class TextLoader():
 
 
     def next_batch(self):
+        if self.pointer < self.ted.talk_counts[self.profile_pointer]:
+            profile = self.ted.profiles[self.profile_pointer]
+        else:
+            self.pointer += 1
+            profile = self.ted.profiles[self.profile_pointer]
         x, y = self.x_batches[self.pointer], self.y_batches[self.pointer]
         self.pointer += 1
         if self.pointer >= len( self.x_batches ):
             self.reset_batch_pointer()
 
-        return x, y
+        profile = np.array([profile for i in range(self.batch_size)])
+        return x, y, profile
 
     def random_batch(self):
         pointer = np.random.randint( len( self.x_batches ) )
@@ -93,6 +99,7 @@ class TextLoader():
 
     def reset_batch_pointer(self):
         self.pointer = 0
+        self.profile_pointer = 0
         
 
-t = TextLoader( ".", 50, 50 )
+# t = TextLoader( ".", 50, 50 )

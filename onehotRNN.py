@@ -1,56 +1,28 @@
 import tensorflow as tf
+import tensorflow.contrib.slim as slim
 import numpy as np
 
 from ohtextloader import TextLoader
 from tensorflow.python.ops import rnn_cell
 import tensorflow.contrib.legacy_seq2seq as seq2seq # I don't want to use legacy...
-from goru import GORUCell
+from goru.goru import GORUCell
 
 #
 # -------------------------------------------
 #
 # Global variables
 
-batch_size = 50
-sequence_length = 50
+batch_size = 10
+sequence_length = 10
 
 data_loader = TextLoader( ".", batch_size, sequence_length )
 
 vocab_size = data_loader.vocab_size  # dimension of one-hot encodings
-state_dim = 128
+state_dim = 256
 
 num_layers = 2
 
 tf.reset_default_graph()
-
-#
-# -------------------------------------------
-#
-# My GRU
-from tensorflow.python.ops.math_ops import tanh
-from tensorflow.python.ops.math_ops import sigmoid
-
-# class mygru( rnn_cell.RNNCell ):
- 
-#     def __init__( self, num_units ):
-#         self._num_units = num_units
-
-#     @property
-#     def state_size(self):
-#         return self._num_units
- 
-#     @property
-#     def output_size(self):
-#         return self._num_units
- 
-#     def __call__( self, inputs, state, scope=None ):
-#         r_t = sigmoid(rnn_cell._linear([inputs, state], self._num_units, True, bias_start=1.0, scope="r_t"))
-#         z_t = sigmoid(rnn_cell._linear([inputs, state], self._num_units, True, bias_start=1.0, scope="z_t"))
-#         h_tilde = tanh(rnn_cell._linear([inputs, r_t * state],
-#             self._num_units, True, bias_start=1.0, scope="h_tilde"))
-#         h_t = (z_t * state) + ((1 - z_t) * h_tilde)
-#         return h_t, h_t # ???
-
 
 #
 # ==================================================================
@@ -65,6 +37,7 @@ from tensorflow.python.ops.math_ops import sigmoid
 in_ph = tf.placeholder( tf.int32, [ batch_size, sequence_length ], name='inputs' )
 targ_ph = tf.placeholder( tf.int32, [ batch_size, sequence_length ], name='targets' )
 in_onehot = tf.one_hot( in_ph, vocab_size, name="input_onehot" )
+profile = tf.placeholder( tf.float32, [ batch_size, 14 ], name="profile" )
 
 inputs = tf.split( in_onehot, sequence_length, 1 )
 inputs = [ tf.squeeze(input_, [1]) for input_ in inputs ]
@@ -92,8 +65,16 @@ with tf.variable_scope("RNN"):
 
     initial_state = stacked_cells.zero_state(batch_size, tf.float32)
 
+    inputs = [tf.concat([i, profile], 1) for i in inputs]
+
+    W_mix = tf.get_variable( "W_mix", [vocab_size + 14, vocab_size], tf.float32,
+                                  tf.random_normal_initializer( stddev=0.02 ) )
+    b_mix = tf.get_variable( "b_mix", [vocab_size],
+                                 initializer=tf.constant_initializer( 0.0 ))
+    mixed_inputs = [tf.nn.relu(tf.matmul( i, W_mix ) + b_mix) for i in inputs]
+
     # call seq2seq.rnn_decoder
-    outputs, final_state = seq2seq.rnn_decoder(inputs, initial_state, stacked_cells)
+    outputs, final_state = seq2seq.rnn_decoder(mixed_inputs, initial_state, stacked_cells)
 
     # transform the list of state outputs to a list of logits.
     # use a linear transformation.
@@ -119,13 +100,17 @@ with tf.variable_scope("RNN", reuse=True):
     batch_size = 1
     s_inputs = tf.placeholder( tf.int32, [ batch_size ], name='s_inputs' )
     s_onehot = tf.one_hot( s_inputs, vocab_size, name="s_input_onehot" )
+    s_profile = tf.placeholder( tf.float32, [ batch_size, 14 ], name="s_profile" )
     #inputs_s = tf.split( 1, 1, s_onehot )
     #inputs_s = [ tf.squeeze(input_, [1]) for input_ in inputs_s ]
 
     s_initial_state = stacked_cells.zero_state(batch_size, tf.float32)
 
+    s_onehot = tf.concat([s_onehot, s_profile], 1)
+    s_mixed_inputs = tf.nn.relu(tf.matmul( s_onehot, W_mix ) + b_mix)
+
     # call seq2seq.rnn_decoder
-    s_outputs, s_final_state = seq2seq.rnn_decoder([s_onehot], s_initial_state, stacked_cells)
+    s_outputs, s_final_state = seq2seq.rnn_decoder([s_mixed_inputs], s_initial_state, stacked_cells)
 
     # transform the list of state outputs to a list of logits.
     # use a linear transformation.
@@ -143,7 +128,11 @@ with tf.variable_scope("RNN", reuse=True):
 
 def sample( num=200, prime='this is a ted talk' ):
 
-    # prime the pump 
+    # prime the pump
+    sample_profile = np.array([1.0] * 14)
+    sample_profile[3] = 100.0
+    sample_profile /= np.sum(sample_profile)
+    sample_profile = sample_profile.reshape((1, 14))
 
     # generate an initial state. this will be a list of states, one for
     # each layer in the multicell.
@@ -153,7 +142,7 @@ def sample( num=200, prime='this is a ted talk' ):
     # update the state.
     for word in prime.split(" "):
         x = np.ravel( data_loader.vocab[word] ).astype('int32')
-        feed = { s_inputs:x }
+        feed = { s_inputs:x, s_profile:sample_profile }
         for i, s in enumerate( s_initial_state ):
             feed[s] = s_state[i]
         s_state = sess.run( s_final_state, feed_dict=feed )
@@ -164,7 +153,7 @@ def sample( num=200, prime='this is a ted talk' ):
         x = np.ravel( data_loader.vocab[word] ).astype('int32')
 
         # plug the most recent character in...
-        feed = { s_inputs:x }
+        feed = { s_inputs:x, s_profile:sample_profile }
         for i, s in enumerate( s_initial_state ):
             feed[s] = s_state[i]
         ops = [s_probs]
@@ -207,10 +196,10 @@ for j in range(1000):
 
     for i in range( data_loader.num_batches ):
         
-        x,y = data_loader.next_batch()
+        x,y,profile_vec = data_loader.next_batch()
 
         # we have to feed in the individual states of the MultiRNN cell
-        feed = { in_ph: x, targ_ph: y }
+        feed = { in_ph: x, targ_ph: y, profile: profile_vec }
         for k, s in enumerate( initial_state ):
             feed[s] = state[k]
 
@@ -227,7 +216,7 @@ for j in range(1000):
         state = retval[2:]
 
         if i%100==0:
-            print "%d %d\t%.4f" % ( j, i, lt )
+            print "%d %d\t%.4f" % ( j, i, lt ) 
             lts.append( lt )
             print sample( num=160, prime="this is a ted talk" )
 

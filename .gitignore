@@ -4,3 +4,4 @@ data.npy
 *tf_logs/*
 *.pyc
 *.pkl
+input.txt
