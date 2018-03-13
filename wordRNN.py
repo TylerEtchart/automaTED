@@ -224,11 +224,13 @@ class WordRNN():
                 if i%100==0:
                     print "%d %d\t%.4f" % (j, i, lt) 
                     lts.append( lt )
+
+                if i%1000==0:
                     # print self.sample(num=160)
                     print self.sample_with_template(num=49, prime='he')
 
             print("Completed epoch: {}, saving weights...".format(j))
-            self.saver.save(self.sess, self.path + "model.ckpt")
+            self.saver.save(self.sess, self.path + "/model.ckpt")
 
         self.summary_writer.close()
         # plot the loss
