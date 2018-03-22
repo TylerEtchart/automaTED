@@ -5,13 +5,12 @@ import numpy as np
 
 class TED:
 
-    def __init__(self):
+    def __init__(self, folder):
         self.categories = ('Beautiful','Confusing','Courageous','Funny','Informative',
                     'Ingenious','Inspiring','Longwinded','Unconvincing',
                     'Fascinating','Jaw-dropping','Persuasive','OK','Obnoxious')
-        self.data = self.load_data('ted/ted_main.csv')
-        self.normalize_profiles_locally()
-        self.vocab = self.generate_vocab()
+        self.data = self.load_data(folder)
+        self.ted.normalize_views()
 
 
     def vectorize(self, ratings):
@@ -37,11 +36,13 @@ class TED:
         return talks
 
 
-    def load_data(self, fn):
+    def load_data(self, folder):
+        data_filename = folder + '/ted_main.csv'
+        talks_filename = folder + '/transcripts.csv'
 
-        talks = self.load_talks('ted/transcripts.csv')
+        talks = self.load_talks(talks_filename)
 
-        with open(fn, 'rb') as f:
+        with open(data_filename, 'rb') as f:
 
             reader = csv.DictReader(f)
             data = {'url':[],'title':[],'views':[],'comments':[],'profile':[], 'talks':[]}

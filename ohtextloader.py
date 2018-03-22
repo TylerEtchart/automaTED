@@ -25,7 +25,10 @@ class TextLoader():
 
 
     def process(self, input_file, vocab_file, tensor_file):
-        self.ted = TED()
+        self.ted = TED("ted")
+        self.ted.normalize_profiles_locally()
+        self.ted.generate_vocab()
+        
         self.vocab_size = self.ted.vocab_size
         self.vocab_list = self.ted.vocab_list
         self.vocab = dict(zip(self.ted.vocab_list, range(self.ted.vocab_size)))
