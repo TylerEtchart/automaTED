@@ -10,7 +10,6 @@ class TED:
                     'Ingenious','Inspiring','Longwinded','Unconvincing',
                     'Fascinating','Jaw-dropping','Persuasive','OK','Obnoxious')
         self.data = self.load_data(folder)
-        self.ted.normalize_views()
 
 
     def vectorize(self, ratings):
