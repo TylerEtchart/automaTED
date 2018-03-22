@@ -36,7 +36,7 @@ class PosRNN():
 		inputs = [tf.squeeze(i, [1]) for i in inputs]
 		targets = tf.split(self.targs, self.seq_length, 1)
 		
-		with tf.variable_scope("RNN"):
+		with tf.variable_scope("posRNN"):
 
 			cells = [GRUCell(self.num_hidden) for _ in range(self.num_layers)]
 
@@ -54,7 +54,7 @@ class PosRNN():
 
 			self.opt = tf.train.AdamOptimizer(0.001, beta1=0.5).minimize(loss)
 
-		with tf.variable_scope("RNN", reuse=True):
+		with tf.variable_scope("posRNN", reuse=True):
 
 			batch_size = 1
 			self.s_inputs = tf.placeholder(tf.int32, [batch_size], name='s_inputs')
