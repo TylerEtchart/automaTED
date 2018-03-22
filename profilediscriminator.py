@@ -8,7 +8,7 @@ import tensorflow.contrib.legacy_seq2seq as seq2seq
 
 class ProfileDiscriminator:
 
-    def __init__(self, restore):
+    def __init__(self, sample_batch_size, sample_sequence_length):
         # -------------------------------------------
         # Global variables
 
@@ -20,16 +20,22 @@ class ProfileDiscriminator:
         self.data_loader = TextLoader(".", self.batch_size, self.sequence_length)
         self.vocab_size = self.data_loader.vocab_size  # dimension of one-hot encodings
 
+        self.sample_state = None
+        self.sample_batch_size = sample_batch_size
+        self.sample_sequence_length = sample_sequence_length
+
         tf.reset_default_graph()
         self.createGraph()
 
-        self.sess = tf.Session()
+        # self.sess = None
         self.path = "./pd_tf_logs"
-        self.sess.run(tf.global_variables_initializer())
+        # self.sess.run(tf.global_variables_initializer())
         self.summary_writer = tf.summary.FileWriter(self.path)
         self.saver = tf.train.Saver()
-        if restore:
-            self.saver.restore(self.sess, self.path + "/model.ckpt")
+
+
+    def restore_weights(self, sess):
+        self.saver.restore(sess, self.path + "/model.ckpt")
 
 
     def createGraph(self):
@@ -50,22 +56,83 @@ class ProfileDiscriminator:
             cells = [rnn_cell.GRUCell(self.state_dim) for i in range(self.num_layers)]
             # cells = [GORUCell( state_dim, str(i) ) for i in range(num_layers)]
 
-            stacked_cells = rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
-            self.initial_state = stacked_cells.zero_state(self.batch_size, tf.float32)
+            self.stacked_cells = rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
+            self.initial_state = self.stacked_cells.zero_state(self.batch_size, tf.float32)
             # call seq2seq.rnn_decoder
-            outputs, self.final_state = seq2seq.rnn_decoder(inputs, self.initial_state, stacked_cells)
+            outputs, self.final_state = seq2seq.rnn_decoder(inputs, self.initial_state, self.stacked_cells)
             # transform the list of state outputs to a list of logits.
             # use a linear transformation.
-            W = tf.get_variable("W", [self.state_dim, self.profile_size], tf.float32,
+            self.W = tf.get_variable("W", [self.state_dim, self.profile_size], tf.float32,
                                         tf.random_normal_initializer(stddev=0.02))
-            b = tf.get_variable("b", [self.profile_size],
+            self.b = tf.get_variable("b", [self.profile_size],
                                         initializer=tf.constant_initializer(0.0))
-            logits = tf.nn.softmax(tf.matmul(outputs[-1], W) + b)
+            self.logits = tf.nn.softmax(tf.matmul(outputs[-1], self.W) + self.b)
             # call seq2seq.sequence_loss
-            self.loss = tf.reduce_sum(tf.abs(self.target_profile - logits))
+            self.loss = tf.reduce_sum(tf.abs(self.target_profile - self.logits))
             self.loss_summary = tf.summary.scalar("loss", self.loss)
             # create a training op using the Adam optimizer
             self.optim = tf.train.AdamOptimizer(0.001, beta1=0.5).minimize(self.loss)
+
+        
+        # -------------------------------------------
+        # Compute Graph
+
+        # with tf.variable_scope("RNN", reuse=True):
+        #     # inputs
+        #     self.s_inputs = tf.placeholder(tf.int32,
+        #             [self.sample_batch_size, self.sample_sequence_length], name='s_inputs')
+        #     s_onehot = tf.one_hot(self.s_inputs, self.vocab_size, name="s_input_onehot")
+        #     s_onehot = tf.split(s_onehot, self.sample_sequence_length, 1)
+        #     s_onehot = [tf.squeeze(input_, [1]) for input_ in s_onehot]
+
+        #     # initialize
+        #     self.s_initial_state = stacked_cells.zero_state(self.sample_batch_size, tf.float32)
+
+        #     # call seq2seq.rnn_decoder
+        #     s_outputs, self.s_final_state = seq2seq.rnn_decoder(s_onehot,
+        #                                         self.s_initial_state, stacked_cells)
+
+        #     # transform the list of state outputs to a list of logits.
+        #     # use a linear transformation.
+        #     # s_outputs = tf.reshape(s_outputs, [1, self.state_dim])
+        #     self.s_probs = tf.nn.softmax(tf.matmul(s_outputs[-1], W) + b)
+
+    def compute_profile_from_within(self, x):
+        with tf.variable_scope("RNN", reuse=True):
+            # inputs
+            self.s_inputs = x
+            s_onehot = tf.one_hot(self.s_inputs, self.vocab_size, name="s_input_onehot")
+            s_onehot = tf.split(s_onehot, self.sample_sequence_length, 1)
+            s_onehot = [tf.squeeze(input_, [1]) for input_ in s_onehot]
+
+            # initialize
+            self.s_initial_state = self.stacked_cells.zero_state(self.sample_batch_size, tf.float32)
+
+            # call seq2seq.rnn_decoder
+            s_outputs, self.s_final_state = seq2seq.rnn_decoder(s_onehot,
+                                                self.s_initial_state, self.stacked_cells)
+
+            # transform the list of state outputs to a list of logits.
+            # use a linear transformation.
+            # s_outputs = tf.reshape(s_outputs, [1, self.state_dim])
+            self.s_probs = tf.nn.softmax(tf.matmul(s_outputs[-1], self.W) + self.b)
+        return self.s_probs
+
+        
+    def compute_profile_from_without(self, x):
+        if self.sample_state == None:
+            self.sample_state = self.sess.run(self.s_initial_state)
+
+        feed = {self.s_inputs: x}
+        for k, s in enumerate(self.s_initial_state):
+            feed[s] = self.sample_state[k]
+
+        ops = [self.s_probs]
+        ops.extend(list(self.s_final_state))
+
+        retval = self.sess.run(ops, feed_dict=feed)
+        self.sample_state = retval[1:]
+        return retval[0]
     
 
     def train(self):
@@ -116,5 +183,13 @@ class ProfileDiscriminator:
 
 if __name__ == "__main__":
     # sess = tf.Session()
-    profile_discriminator = ProfileDiscriminator(restore=False)
-    profile_discriminator.train()
+    # profile_discriminator = ProfileDiscriminator(restore=False)
+    # profile_discriminator.train()
+    bs = 4
+    sl = 3
+    profile_discriminator = ProfileDiscriminator(restore=True,
+                    sample_batch_size=bs, sample_sequence_length=sl)
+    dl = TextLoader(".", bs, sl)
+    x, y, profile_vec = dl.next_batch()
+    print(x)
+    print(profile_discriminator.compute_profile(x))
