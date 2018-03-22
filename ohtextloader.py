@@ -25,7 +25,7 @@ class TextLoader():
 
 
     def process(self, input_file, vocab_file, tensor_file):
-        self.ted = TED("ted")
+        self.ted = TED("/ted")
         self.ted.normalize_profiles_locally()
         self.ted.generate_vocab()
         

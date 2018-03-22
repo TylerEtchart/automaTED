@@ -10,6 +10,7 @@ class TED:
                     'Ingenious','Inspiring','Longwinded','Unconvincing',
                     'Fascinating','Jaw-dropping','Persuasive','OK','Obnoxious')
         self.data = self.load_data(folder)
+        # self.normalize_views()
 
 
     def vectorize(self, ratings):
@@ -36,8 +37,8 @@ class TED:
 
 
     def load_data(self, folder):
-        data_filename = folder + '/ted_main.csv'
-        talks_filename = folder + '/transcripts.csv'
+        data_filename = folder + 'ted_main.csv'
+        talks_filename = folder + 'transcripts.csv'
 
         talks = self.load_talks(talks_filename)
 
@@ -75,6 +76,12 @@ class TED:
         profiles = np.array(self.data['profile']).astype(float)
         profile_sums = profiles.sum(axis=1)
         self.profiles = (profiles / profile_sums[:, np.newaxis])
+
+
+    def normalize_views(self):
+        views = np.array(self.data['views']).astype(float)
+        print(views)
+        print(views.shape)
 
 
     def generate_vocab(self):
@@ -124,4 +131,4 @@ class TED:
 
 
 if __name__ == "__main__":
-    t = TED()
+    t = TED("")
