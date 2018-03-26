@@ -132,12 +132,10 @@ class TED:
         fn = os.path.join(self.folder, "tags.txt")
 
         if os.path.exists(fn):
-
             with open(fn, 'rb') as f:
                 return [line.strip("\n") for line in f]
 
         else:
-
             # combine and clean talks
             text = ' '.join(self.data['talks'])
             text = text.decode('utf-8')
