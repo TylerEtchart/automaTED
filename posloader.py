@@ -11,17 +11,12 @@ class PosLoader():
         self.seq_len = seq_len
         self.dir = data_dir
 
-        # self.v_list = self.process()                                # [ word1, word2, word3 ... ]
-        # self.v_size = len(self.vocab)                               # word3 --> [ 0, 0, 1, 0, 0 ... ]
-        # self.v_nums = dict(zip(self.v_list, range(self.v_size)))    # { word1: 1, word2: 2, word3: 3 ...}
-
         self.process()
         self.batchify()
+        self.reset_batch_pointer()
 
 
     def process(self):
-
-
 
         tags  = TED().get_tags()
         vocab = set(tags)
@@ -42,8 +37,6 @@ class PosLoader():
         self.x_batches = np.split(x.reshape(self.batch_size, -1), num_batches, 1)
         self.y_batches = np.split(y.reshape(self.batch_size, -1), num_batches, 1)
 
-        print(type(self.x_batches))
-
 
     def next(self):
 
@@ -55,9 +48,14 @@ class PosLoader():
         return x, y
 
 
+    def rand(self):
+        pointer = np.random.randint(len(self.x_batches))
+        return self.x_batches[pointer], self.y_batches[pointer]
+
+
     def reset_batch_pointer(self):
         self.pointer = 0
 
 
 if __name__=="__main__":
-    l = BatchLoader()
+    l = PosLoader()

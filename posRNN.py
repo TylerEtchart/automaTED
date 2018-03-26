@@ -10,7 +10,7 @@ class PosRNN():
 	def __init__(self):
 
 		self.batch_size = 50
-		self.seq_length = 50
+		self.seq_len = 50
 		self.num_layers = 2
 		self.num_hidden = 128
 		self.vocab_size = 35
@@ -28,13 +28,13 @@ class PosRNN():
 
 	def createGraph(self):
 
-		self.input = tf.placeholder(tf.int32, [self.batch_size, self.seq_length], name='inputs')
-		self.targs = tf.placeholder(tf.int32, [self.batch_size, self.seq_length], name='targets')
+		self.input = tf.placeholder(tf.int32, [self.batch_size, self.seq_len], name='inputs')
+		self.targs = tf.placeholder(tf.int32, [self.batch_size, self.seq_len], name='targets')
 		self.onehot = tf.one_hot(self.input, self.vocab_size, name='input_oh')
 
-		inputs = tf.split(self.onehot, self.seq_length, 1)
+		inputs = tf.split(self.onehot, self.seq_len, 1)
 		inputs = [tf.squeeze(i, [1]) for i in inputs]
-		targets = tf.split(self.targs, self.seq_length, 1)
+		targets = tf.split(self.targs, self.seq_len, 1)
 		
 		with tf.variable_scope("posRNN"):
 
@@ -43,13 +43,13 @@ class PosRNN():
 			stacked = MultiRNNCell(cells, state_is_tuple=True)
 			self.zero_state = stacked_cells.zero_state(self.batch_size, tf.float32)
 
-			output, self.last_state = seq2seq.rnn_decoder()
+			outputs, self.last_state = seq2seq.rnn_decoder()
 
 			w = tf.get_variable("w", [self.num_hidden, self.vocab_size], tf.float32, tf.random_normal_initializer(stddev=0.02))
 			b = tf.get_variable("b", [self.vocab_size], tf.constant_initializer(0.0))
 			logits = [tf.matmul(o, w) + b for o in outputs]
 
-			const_weights = [tf.ones([self.batch_size]) for _ in xrange(self.seq_length)]
+			const_weights = [tf.ones([self.batch_size]) for _ in xrange(self.seq_len)]
 			self.loss = seq2seq.sequence_length(logits, targets, const_weights)
 
 			self.opt = tf.train.AdamOptimizer(0.001, beta1=0.5).minimize(loss)
@@ -61,9 +61,9 @@ class PosRNN():
 			s_onehot = tf.one_hot(s_inputs, self.vocab_size, name='s_input_oh')
 
 			self.s_zero_state = stacked_cells.zero_state(batch_size, tf.float32)
-			s_output, self.s_last_state = seq2seq.rnn_decoder([s_onehot], self.s_zero_state, stacked)
-			s_output = tf.reshape(s_output, [1, self.num_hidden])
-			self.s_probs = tf.nn.softmax(tf.matmul(s_output, w) + b)
+			s_outputs, self.s_last_state = seq2seq.rnn_decoder([s_onehot], self.s_zero_state, stacked)
+			s_outputs = tf.reshape(s_outputs, [1, self.num_hidden])
+			self.s_probs = tf.nn.softmax(tf.matmul(s_outputs, w) + b)
 
 
 	def sample(self, num, prime):
