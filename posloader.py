@@ -20,22 +20,22 @@ class PosLoader():
 
         tags  = TED().get_tags()
         vocab = set(tags)
-        vocab = dict(zip(vocab, range(len(vocab))))
-        
+        self.vocab = dict(zip(vocab, range(len(vocab))))
+        self.vocab_size = len(self.vocab)
         self.data = np.array([vocab[t] for t in tags])
 
 
     def batchify(self):
 
-        num_batches = int(len(self.data) / (self.batch_size * self.seq_len))
-        self.data = self.data[:num_batches * self.batch_size * self.seq_len]
+        self.num_batches = int(len(self.data) / (self.batch_size * self.seq_len))
+        self.data = self.data[:self.num_batches * self.batch_size * self.seq_len]
 
         x, y = self.data, np.copy(self.data)
         y[:-1] = x[1:]
         y[-1] = x[0]
 
-        self.x_batches = np.split(x.reshape(self.batch_size, -1), num_batches, 1)
-        self.y_batches = np.split(y.reshape(self.batch_size, -1), num_batches, 1)
+        self.x_batches = np.split(x.reshape(self.batch_size, -1), self.num_batches, 1)
+        self.y_batches = np.split(y.reshape(self.batch_size, -1), self.num_batches, 1)
 
 
     def next(self):

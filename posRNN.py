@@ -4,6 +4,8 @@ import numpy as np
 
 from tensorflow.python.ops.rnn_cell import GRUCell, MultiRNNCell
 
+from posloader import PosLoader
+
 
 class PosRNN():
 
@@ -13,7 +15,8 @@ class PosRNN():
 		self.seq_len = 50
 		self.num_layers = 2
 		self.num_hidden = 128
-		self.vocab_size = 35
+		self.batcher = PosLoader(self.batch_size, self.seq_len)
+		self.vocab_size = self.batcher.vocab_size
 
 		tf.reset_default_graph()
 		self.createGraph()
