@@ -6,7 +6,7 @@ from ohtextloader import TextLoader
 from tensorflow.python.ops import rnn_cell
 import tensorflow.contrib.legacy_seq2seq as seq2seq
 
-class ProfileDiscriminator:
+class QualityDiscriminator:
 
     def __init__(self, sample_batch_size, sample_sequence_length):
         # -------------------------------------------
@@ -16,6 +16,7 @@ class ProfileDiscriminator:
         self.sequence_length = 50
         self.state_dim = 256
         self.profile_size = 14
+        self.view_size = 1
         self.num_layers = 2
         self.data_loader = TextLoader(".", self.batch_size, self.sequence_length)
         self.vocab_size = self.data_loader.vocab_size  # dimension of one-hot encodings
@@ -27,9 +28,9 @@ class ProfileDiscriminator:
         tf.reset_default_graph()
         self.createGraph()
 
-        # self.sess = None
-        self.path = "./pd_tf_logs"
-        # self.sess.run(tf.global_variables_initializer())
+        self.sess = tf.Session()
+        self.path = "./qd_tf_logs"
+        self.sess.run(tf.global_variables_initializer())
         self.summary_writer = tf.summary.FileWriter(self.path)
         self.saver = tf.train.Saver()
 
@@ -43,7 +44,7 @@ class ProfileDiscriminator:
         # Inputs
 
         self.in_ph = tf.placeholder(tf.int32, [self.batch_size, self.sequence_length], name='inputs')
-        self.target_profile = tf.placeholder(tf.float32, [self.batch_size, self.profile_size], name="target")
+        self.target_views = tf.placeholder(tf.float32, [self.batch_size, self.view_size], name="target")
 
         in_onehot = tf.one_hot(self.in_ph, self.vocab_size, name="input_onehot")
         inputs = tf.split(in_onehot, self.sequence_length, 1)
@@ -62,13 +63,13 @@ class ProfileDiscriminator:
             outputs, self.final_state = seq2seq.rnn_decoder(inputs, self.initial_state, self.stacked_cells)
             # transform the list of state outputs to a list of logits.
             # use a linear transformation.
-            self.W = tf.get_variable("W", [self.state_dim, self.profile_size], tf.float32,
+            self.W = tf.get_variable("W", [self.state_dim, self.view_size], tf.float32,
                                         tf.random_normal_initializer(stddev=0.02))
-            self.b = tf.get_variable("b", [self.profile_size],
+            self.b = tf.get_variable("b", [self.view_size],
                                         initializer=tf.constant_initializer(0.0))
-            self.logits = tf.nn.softmax(tf.matmul(outputs[-1], self.W) + self.b)
+            self.logits = tf.matmul(outputs[-1], self.W) + self.b
             # call seq2seq.sequence_loss
-            self.loss = tf.reduce_sum(tf.abs(self.target_profile - self.logits))
+            self.loss = tf.reduce_sum(tf.abs(self.target_views - self.logits))
             self.loss_summary = tf.summary.scalar("loss", self.loss)
             # create a training op using the Adam optimizer
             self.optim = tf.train.AdamOptimizer(0.001, beta1=0.5).minimize(self.loss)
@@ -115,7 +116,7 @@ class ProfileDiscriminator:
             # transform the list of state outputs to a list of logits.
             # use a linear transformation.
             # s_outputs = tf.reshape(s_outputs, [1, self.state_dim])
-            self.s_probs = tf.nn.softmax(tf.matmul(s_outputs[-1], self.W) + self.b)
+            self.s_probs = tf.matmul(s_outputs[-1], self.W) + self.b
         return self.s_probs
 
         
@@ -147,10 +148,10 @@ class ProfileDiscriminator:
 
             for i in range(self.data_loader.num_batches):
                 
-                x, y, profile_vec, _ = self.data_loader.next_batch()
+                x, y, _, views = self.data_loader.next_batch()
 
                 # we have to feed in the individual states of the MultiRNN cell
-                feed = {self.in_ph: x, self.target_profile: profile_vec}
+                feed = {self.in_ph: x, self.target_views: views}
                 for k, s in enumerate(self.initial_state):
                     feed[s] = state[k]
 
@@ -182,14 +183,15 @@ class ProfileDiscriminator:
 
 
 if __name__ == "__main__":
-    # sess = tf.Session()
-    # profile_discriminator = ProfileDiscriminator(restore=False)
-    # profile_discriminator.train()
-    bs = 4
-    sl = 3
-    profile_discriminator = ProfileDiscriminator(restore=True,
-                    sample_batch_size=bs, sample_sequence_length=sl)
-    dl = TextLoader(".", bs, sl)
-    x, y, profile_vec, _ = dl.next_batch()
-    print(x)
-    print(profile_discriminator.compute_profile(x))
+    bs = 1
+    sl = 1
+
+    quality_discriminator = QualityDiscriminator(sample_batch_size=bs, sample_sequence_length=sl)
+    quality_discriminator.train()
+    
+    # quality_discriminator = QualityDiscriminator(restore=True,
+    #                 sample_batch_size=bs, sample_sequence_length=sl)
+    # dl = TextLoader(".", bs, sl)
+    # x, y, _, views = dl.next_batch()
+    # print(x)
+    # print(quality_discriminator.compute_profile(x))

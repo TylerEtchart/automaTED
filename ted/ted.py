@@ -10,45 +10,34 @@ class TED:
                     'Ingenious','Inspiring','Longwinded','Unconvincing',
                     'Fascinating','Jaw-dropping','Persuasive','OK','Obnoxious')
         self.data = self.load_data(folder)
-        # self.normalize_views()
 
 
     def vectorize(self, ratings):
-
         counts = [0]*len(self.categories)
-
         for i in eval(ratings):
             counts[self.categories.index(i['name'])] = i['count']
-
         return counts
 
 
     def load_talks(self, fn):
-
         with open(fn, 'rb') as f:
-
             reader = csv.DictReader(f)
             talks = {}
-
             for r in reader:
                 talks[r['url'].strip()] = r['transcript']
-
         return talks
 
 
     def load_data(self, folder):
         data_filename = folder + 'ted_main.csv'
         talks_filename = folder + 'transcripts.csv'
-
         talks = self.load_talks(talks_filename)
 
         with open(data_filename, 'rb') as f:
-
             reader = csv.DictReader(f)
             data = {'url':[],'title':[],'views':[],'comments':[],'profile':[], 'talks':[]}
 
             for r in reader:
-
                 url = r['url'].strip()
                 
                 if url not in talks:
@@ -80,8 +69,7 @@ class TED:
 
     def normalize_views(self):
         views = np.array(self.data['views']).astype(float)
-        print(views)
-        print(views.shape)
+        self.views = views / np.max(views)
 
 
     def generate_vocab(self):
@@ -90,6 +78,12 @@ class TED:
         keep_pattern = re.compile("[^0-9a-zA-Z'\-\s]")
         strip_pattern = re.compile("\([a-zA-Z]*\)")
         frequency_constraint = 60
+
+        # frequency_constraint --> vocab_size
+        # 0 --> 71381
+        # 60 --> 5131
+        # 100 --> 3534
+        # 200 --> 2026
 
         # strip talks
         self.stripped_talks = []
@@ -132,3 +126,5 @@ class TED:
 
 if __name__ == "__main__":
     t = TED("")
+    t.generate_vocab()
+    print(t.vocab_size)
