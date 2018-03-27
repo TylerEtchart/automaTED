@@ -1,15 +1,18 @@
+import os
 import csv
 import re
 import collections
 import numpy as np
+import nltk
 
 class TED:
 
-    def __init__(self, folder):
+    def __init__(self, folder="ted"):
+        self.folder = folder
         self.categories = ('Beautiful','Confusing','Courageous','Funny','Informative',
                     'Ingenious','Inspiring','Longwinded','Unconvincing',
                     'Fascinating','Jaw-dropping','Persuasive','OK','Obnoxious')
-        self.data = self.load_data(folder)
+        self.data = self.load_data()
 
 
     def vectorize(self, ratings):
@@ -28,9 +31,9 @@ class TED:
         return talks
 
 
-    def load_data(self, folder):
-        data_filename = folder + 'ted_main.csv'
-        talks_filename = folder + 'transcripts.csv'
+    def load_data(self):
+        data_filename = os.path.join(self.folder, 'ted_main.csv')
+        talks_filename = os.path.join(self.folder, 'transcripts.csv')
         talks = self.load_talks(talks_filename)
 
         with open(data_filename, 'rb') as f:
@@ -117,6 +120,35 @@ class TED:
             else:
                 self.talk_counts.append(self.talk_lengths[i] + self.talk_counts[i - 1])
         
+
+    def get_tags(self):
+
+        fn = os.path.join(self.folder, "tags.txt")
+
+        if os.path.exists(fn):
+            with open(fn, 'rb') as f:
+                return [line.strip("\n") for line in f]
+
+        else:
+            # combine and clean talks
+            text = ' '.join(self.data['talks'])
+            text = text.decode('utf-8')
+            text = re.sub('\([a-zA-Z]*\)', ' ', text)
+
+            # generate tags
+            tokens = nltk.word_tokenize(text)
+            tags = nltk.pos_tag(tokens)
+
+            # keep original punctuation (instead of '.' tag)
+            punc = lambda t : t[0] if t[1]=='.' else t[1]
+            tags = [punc(t) for t in tags]
+
+            with open(fn, 'w') as file:
+                for tag in tags:
+                    file.write('%s\n' % tag)
+
+            return tags
+
 
     def to_txt(self):
         text = " ".join(self.data['talks'])

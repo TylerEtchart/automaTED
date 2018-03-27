@@ -6,7 +6,8 @@ from ohtextloader import TextLoader
 from templatemanager import TemplateManager
 from tensorflow.python.ops import rnn_cell
 import tensorflow.contrib.legacy_seq2seq as seq2seq # I don't want to use legacy...
-from goru.goru import GORUCell
+# from goru.goru import GORUCell
+from goru.GORU import GORUCell
 
 class WordRNN():
 
@@ -53,7 +54,8 @@ class WordRNN():
         with tf.variable_scope("RNN"):
             # define cells
             cells = [rnn_cell.GRUCell(self.state_dim) for i in range(self.num_layers)]
-            # cells = [GORUCell(state_dim, str(i)) for i in range(num_layers)]
+            # cells = [GORUCell(self.state_dim, str(i)) for i in range(self.num_layers)]
+            # cells = [GORUCell(self.state_dim) for i in range(self.num_layers)]
 
             # stack and initialize cells
             stacked_cells = rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
