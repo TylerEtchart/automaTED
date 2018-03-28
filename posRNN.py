@@ -76,18 +76,22 @@ class PosRNN():
 		s_state = self.sess.run(self.s_zero_state)
 
 		prime_tokens = nltk.word_tokenize(prime)
-		prime_tags = nltk.pos_tag(prime_tokens)
+		prime_tags = [tag for word, tag in nltk.pos_tag(prime_tokens)]
 
-		for word, tag in prime_tags:
+		for tag in prime_tags:
 			x = np.ravel(self.batcher.vocab[tag]).astype('int32')
 			d = {self.s_inputs:x}
 			for i, s in enumerate(self.s_zero_state):
 				d[s] = s_state[i]
 			s_state = self.sess.run(self.s_last_state, feed_dict=d)
 
+		
 		ret = prime_tags
 		tag = prime_tags[-1]
-		for n in range(num):
+
+
+		num_non_punc_tags = 0
+		while num_non_punc_tags < num:
 			x = np.ravel(self.batcher.vocab[tag]).astype('int32')
 			d = {self.s_inputs:x}
 			for i, s in enumerate(self.s_zero_state):
@@ -102,9 +106,12 @@ class PosRNN():
 
 			sample = np.random.choice(self.vocab_size, p=s_probsv[0])
 
-			pred = data_loader.chars[sample]
-			ret += pred
+			pred = self.batcher.vocab_list[sample]
+			ret.append(pred)
 			tag = pred
+
+			if tag not in self.batcher.list_of_punctuation:
+				num_non_punc_tags += 1
 
 		return ret
 
@@ -137,7 +144,9 @@ class PosRNN():
 				if i%100==0:
 					print("%d %d\t %.4f" % (j, i, lt))
 					lts.append(lt)
-					print(self.sample(num=160, prime="And "))
+
+				if i%1000==0:
+					print(" ".join(self.sample(num=160, prime="And ")))
 
 			print("Completed epoch: {}, saving weights...".format(j))
 			self.saver.save(self.sess, self.path + "/model.ckpt")

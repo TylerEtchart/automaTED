@@ -16,6 +16,7 @@ class PosLoader():
         self.process()
         self.batchify()
         self.reset_batch_pointer()
+        self.list_of_punctuation = ['``', "''", '!', '#', '$', ')', '(', ',', '.', ':', '?']
 
 
     def process(self):
@@ -61,3 +62,4 @@ class PosLoader():
 
 if __name__=="__main__":
     l = PosLoader()
+    print(l.vocab_list)

@@ -3,7 +3,8 @@ import tensorflow.contrib.slim as slim
 import numpy as np
 
 from ohtextloader import TextLoader
-from templatemanager import TemplateManager
+# from templatemanager import TemplateManager
+from templater import TemplateManager
 from tensorflow.python.ops import rnn_cell
 import tensorflow.contrib.legacy_seq2seq as seq2seq # I don't want to use legacy...
 from goru.goru import GORUCell
@@ -34,12 +35,13 @@ class WordRNNCombined():
         self.sess = tf.Session()
 
         self.sess.run(tf.global_variables_initializer())
-        self.profile_discriminator.restore_weights(self.sess)
+        # self.profile_discriminator.restore_weights(self.sess)
         self.path = "./word_tf_logs"
         self.summary_writer = tf.summary.FileWriter(self.path)
         self.saver = tf.train.Saver()
         if restore:
             self.saver.restore(self.sess, self.path + "/model.ckpt")
+        self.tm = TemplateManager()
 
 
     def createGraph(self):
@@ -194,14 +196,9 @@ class WordRNNCombined():
 
     def sample_with_template(self, num, prime, argm):
         # create template
-        tm = TemplateManager()
-        tm.generate_template(length=num + len(prime.split()))
-        while not tm.match(sentence=prime):
-            print("The prime won't work with the template! Generating new template...")
-            tm.generate_template(length=num)
+        self.tm.generate_template(primer=prime, length=num)
         # sample words
         probs = self.sample_probs(num, prime)
-        ret = prime
         for p in probs:
             valid = False
             while not valid:
@@ -210,13 +207,14 @@ class WordRNNCombined():
                 else:
                     sample = np.random.choice(self.vocab_size, p=p)
                 word = self.data_loader.vocab_list[sample]
-                temp_ret = ret + " " + word
-                valid = tm.match_latest(sentence=temp_ret)
+
+                # TODO: Limit number of attempts
+                valid = self.tm.match_word(word=word)
+                
                 # renormalize
                 p[sample] = 0.0
                 p /= np.sum(p)
-            ret = temp_ret
-        return tm.format_sentence(ret)
+        return self.tm.format_sentence()
 
 
     def train(self):

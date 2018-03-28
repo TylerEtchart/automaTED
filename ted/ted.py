@@ -79,7 +79,7 @@ class TED:
         # prepare data
         text = self.data['talks']
         keep_pattern = re.compile("[^0-9a-zA-Z'\-\s]")
-        strip_pattern = re.compile("\([a-zA-Z]*\)")
+        strip_pattern = re.compile("\( *[a-z A-Z]* *\)")
         frequency_constraint = 60
 
         # frequency_constraint --> vocab_size
@@ -119,6 +119,57 @@ class TED:
                 self.talk_counts.append(self.talk_lengths[i])
             else:
                 self.talk_counts.append(self.talk_lengths[i] + self.talk_counts[i - 1])
+
+
+    def generate_tokenized_vocab(self):
+        # prepare data
+        text = self.data['talks']
+        keep_pattern = re.compile("[^0-9a-zA-Z'\-\s]")
+        strip_pattern = re.compile("\( *[a-z A-Z]* *\)")
+        frequency_constraint = 60
+
+        # frequency_constraint --> vocab_size
+        # 0 --> 71381
+        # 60 --> 5131
+        # 100 --> 3534
+        # 200 --> 2026
+
+        # 0 --> 96526
+        # 60 --> 5021
+
+        # strip talks
+        self.stripped_talks = []
+        self.words = []
+        for i in range(len(text)):
+            talk = text[i]
+            talk = talk.decode('utf-8')
+            talk = strip_pattern.sub(" ", talk)
+            talk = keep_pattern.sub(" ", talk)
+            # talk = re.split('\s*', talk)
+            talk = nltk.word_tokenize(talk.lower())
+            # talk = [t.lower() for t in talk]
+            self.stripped_talks.append(talk)
+            self.words.extend(talk)
+
+        # generate vocab
+        vocab_counter = collections.Counter(self.words)
+        self.vocab_list = [word for word, frequency in vocab_counter.items() if frequency >= frequency_constraint]
+        self.vocab_size = len(self.vocab_list)
+
+        # final strip of talks
+        vocab_set = set(self.vocab_list)
+        for i in range(len(self.stripped_talks)):
+            self.stripped_talks[i] = [word for word in self.stripped_talks[i] if word in vocab_set]
+        self.words = [word for word in self.words if word in vocab_set]
+        self.talk_lengths = [len(talk) for talk in self.stripped_talks]
+
+        # get the counts of the talks
+        self.talk_counts = []
+        for i in range(len(self.talk_lengths)):
+            if i == 0:
+                self.talk_counts.append(self.talk_lengths[i])
+            else:
+                self.talk_counts.append(self.talk_lengths[i] + self.talk_counts[i - 1])
         
 
     def get_tags(self):
@@ -133,7 +184,7 @@ class TED:
             # combine and clean talks
             text = ' '.join(self.data['talks'])
             text = text.decode('utf-8')
-            text = re.sub('\([a-zA-Z]*\)', ' ', text)
+            text = re.sub('\( *[a-z A-Z]* *\)', ' ', text)
 
             # generate tags
             tokens = nltk.word_tokenize(text)
@@ -158,5 +209,5 @@ class TED:
 
 if __name__ == "__main__":
     t = TED("")
-    t.generate_vocab()
+    t.generate_tokenized_vocab()
     print(t.vocab_size)
