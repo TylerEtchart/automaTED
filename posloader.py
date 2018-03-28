@@ -1,3 +1,5 @@
+
+from collections import Counter
 from ted.ted import TED
 import numpy as np
 import nltk
@@ -19,10 +21,10 @@ class PosLoader():
     def process(self):
 
         tags  = TED().get_tags()
-        vocab = set(tags)
-        self.vocab = dict(zip(vocab, range(len(vocab))))
-        self.vocab_size = len(self.vocab)
-        self.data = np.array([vocab[t] for t in tags])
+        self.vocab_list = [word for word, freq in Counter(tags).items()]
+        self.vocab_size = len(self.vocab_list)
+        self.vocab = dict(zip(self.vocab_list, range(len(self.vocab_list))))
+        self.data = np.array([self.vocab[t] for t in tags])
 
 
     def batchify(self):

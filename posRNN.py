@@ -1,7 +1,9 @@
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import numpy as np
+import nltk
 
+import tensorflow.contrib.legacy_seq2seq as seq2seq
 from tensorflow.python.ops.rnn_cell import GRUCell, MultiRNNCell
 
 from posloader import PosLoader
@@ -9,7 +11,7 @@ from posloader import PosLoader
 
 class PosRNN():
 
-	def __init__(self):
+	def __init__(self, restore):
 
 		self.batch_size = 50
 		self.seq_len = 50
@@ -33,9 +35,9 @@ class PosRNN():
 
 		self.input = tf.placeholder(tf.int32, [self.batch_size, self.seq_len], name='inputs')
 		self.targs = tf.placeholder(tf.int32, [self.batch_size, self.seq_len], name='targets')
-		self.onehot = tf.one_hot(self.input, self.vocab_size, name='input_oh')
+		onehot = tf.one_hot(self.input, self.vocab_size, name='input_oh')
 
-		inputs = tf.split(self.onehot, self.seq_len, 1)
+		inputs = tf.split(onehot, self.seq_len, 1)
 		inputs = [tf.squeeze(i, [1]) for i in inputs]
 		targets = tf.split(self.targs, self.seq_len, 1)
 		
@@ -44,26 +46,26 @@ class PosRNN():
 			cells = [GRUCell(self.num_hidden) for _ in range(self.num_layers)]
 
 			stacked = MultiRNNCell(cells, state_is_tuple=True)
-			self.zero_state = stacked_cells.zero_state(self.batch_size, tf.float32)
+			self.zero_state = stacked.zero_state(self.batch_size, tf.float32)
 
-			outputs, self.last_state = seq2seq.rnn_decoder()
+			outputs, self.last_state = seq2seq.rnn_decoder(inputs, self.zero_state, stacked)
 
-			w = tf.get_variable("w", [self.num_hidden, self.vocab_size], tf.float32, tf.random_normal_initializer(stddev=0.02))
-			b = tf.get_variable("b", [self.vocab_size], tf.constant_initializer(0.0))
+			w = tf.get_variable("w", [self.num_hidden, self.vocab_size], tf.float32, initializer=tf.random_normal_initializer(stddev=0.02))
+			b = tf.get_variable("b", [self.vocab_size], initializer=tf.constant_initializer(0.0))
 			logits = [tf.matmul(o, w) + b for o in outputs]
 
 			const_weights = [tf.ones([self.batch_size]) for _ in xrange(self.seq_len)]
-			self.loss = seq2seq.sequence_length(logits, targets, const_weights)
+			self.loss = seq2seq.sequence_loss(logits, targets, const_weights)
 
-			self.opt = tf.train.AdamOptimizer(0.001, beta1=0.5).minimize(loss)
+			self.opt = tf.train.AdamOptimizer(0.001, beta1=0.5).minimize(self.loss)
 
 		with tf.variable_scope("posRNN", reuse=True):
 
 			batch_size = 1
 			self.s_inputs = tf.placeholder(tf.int32, [batch_size], name='s_inputs')
-			s_onehot = tf.one_hot(s_inputs, self.vocab_size, name='s_input_oh')
+			s_onehot = tf.one_hot(self.s_inputs, self.vocab_size, name='s_input_oh')
 
-			self.s_zero_state = stacked_cells.zero_state(batch_size, tf.float32)
+			self.s_zero_state = stacked.zero_state(batch_size, tf.float32)
 			s_outputs, self.s_last_state = seq2seq.rnn_decoder([s_onehot], self.s_zero_state, stacked)
 			s_outputs = tf.reshape(s_outputs, [1, self.num_hidden])
 			self.s_probs = tf.nn.softmax(tf.matmul(s_outputs, w) + b)
@@ -73,18 +75,20 @@ class PosRNN():
 
 		s_state = self.sess.run(self.s_zero_state)
 
-		for word in prime.split(" "):
-			# TODO : self.data_loader.vocab[word]
-			x = np.ravel().astype('int32')
+		prime_tokens = nltk.word_tokenize(prime)
+		prime_tags = nltk.pos_tag(prime_tokens)
+
+		for word, tag in prime_tags:
+			x = np.ravel(self.batcher.vocab[tag]).astype('int32')
 			d = {self.s_inputs:x}
 			for i, s in enumerate(self.s_zero_state):
 				d[s] = s_state[i]
 			s_state = self.sess.run(self.s_last_state, feed_dict=d)
 
-		total_probs = []
+		ret = prime_tags
+		tag = prime_tags[-1]
 		for n in range(num):
-			# TODO : self.data_loader.vocab[word]
-			x = np.ravel().astype('int32')
+			x = np.ravel(self.batcher.vocab[tag]).astype('int32')
 			d = {self.s_inputs:x}
 			for i, s in enumerate(self.s_zero_state):
 				d[s] = s_state[i]
@@ -96,9 +100,13 @@ class PosRNN():
 			s_probsv = retval[0]
 			s_state = retval[1:]
 
-			total_probs.append(s_probsv[0])
+			sample = np.random.choice(self.vocab_size, p=s_probsv[0])
 
-		return total_probs
+			pred = data_loader.chars[sample]
+			ret += pred
+			tag = pred
+
+		return ret
 
 
 	def train(self):
@@ -108,11 +116,11 @@ class PosRNN():
 		for j in range(1000):
 
 			state = self.sess.run(self.zero_state)
-			# TODO : self.data_loader.reset_batch_pointer()
+			self.batcher.reset_batch_pointer()
 
-			for i in range(self.data_loader.num_batches):
+			for i in range(self.batcher.num_batches):
 
-				x, y = self.data_loader.next_batch()
+				x, y = self.batcher.next()
 
 				d = {self.input:x, self.targs:y}
 				for k, s, in enumerate(self.zero_state):
@@ -121,7 +129,7 @@ class PosRNN():
 				ops = [self.opt, self.loss]
 				ops.extend(list(self.last_state))
 
-				retval = self.sess.run([ops], feed_dict=d)
+				retval = self.sess.run(ops, feed_dict=d)
 
 				lt = retval[1]
 				state = retval[2:]
@@ -129,6 +137,7 @@ class PosRNN():
 				if i%100==0:
 					print("%d %d\t %.4f" % (j, i, lt))
 					lts.append(lt)
+					print(self.sample(num=160, prime="And "))
 
 			print("Completed epoch: {}, saving weights...".format(j))
 			self.saver.save(self.sess, self.path + "/model.ckpt")
