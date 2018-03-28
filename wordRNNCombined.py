@@ -179,17 +179,20 @@ class WordRNNCombined():
         return total_probs
 
 
-    def sample(self, num, prime):
+    def sample(self, num, prime, argm):
         probs = self.sample_probs(num, prime)
         ret = prime
         for p in probs:
-            sample = np.random.choice(self.vocab_size, p=p)
+            if argm:
+                sample = np.argmax(p)
+            else:
+                sample = np.random.choice(self.vocab_size, p=p)
             word = self.data_loader.vocab_list[sample]
             ret += " " + word
         return ret
 
 
-    def sample_with_template(self, num, prime):
+    def sample_with_template(self, num, prime, argm):
         # create template
         tm = TemplateManager()
         tm.generate_template(length=num + len(prime.split()))
@@ -202,7 +205,10 @@ class WordRNNCombined():
         for p in probs:
             valid = False
             while not valid:
-                sample = np.random.choice(self.vocab_size, p=p)
+                if argm:
+                    sample = np.argmax(p)
+                else:
+                    sample = np.random.choice(self.vocab_size, p=p)
                 word = self.data_loader.vocab_list[sample]
                 temp_ret = ret + " " + word
                 valid = tm.match_latest(sentence=temp_ret)
@@ -223,7 +229,7 @@ class WordRNNCombined():
             self.data_loader.reset_batch_pointer()
 
             for i in range(self.data_loader.num_batches): 
-                x, y, profile_vec = self.data_loader.next_batch()
+                x, y, profile_vec, _ = self.data_loader.next_batch()
 
                 # we have to feed in the individual states of the MultiRNN cell
                 feed = {self.in_ph: x, self.targ_ph: y, self.profile: profile_vec}
@@ -249,7 +255,12 @@ class WordRNNCombined():
 
                 if i%1000==0:
                     # print self.sample(num=160)
-                    print self.sample_with_template(num=49, prime='he')
+                    print "\n-------------------------------"
+                    print "SAMPLE WITH TEMPLATE:", self.sample_with_template(num=49, prime='he', argm=False)
+                    print "\nSAMPLE W/O TEMPLATE:", self.sample(num=49, prime='he', argm=False)
+                    print "\nARGMAX WITH TEMPLATE:", self.sample_with_template(num=49, prime='he', argm=True)
+                    print "\nARGMAX W/O TEMPLATE:", self.sample(num=49, prime='he', argm=True)
+                    print "-------------------------------\n"
 
             print("Completed epoch: {}, saving weights...".format(j))
             self.saver.save(self.sess, self.path + "/model.ckpt")

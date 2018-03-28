@@ -25,10 +25,9 @@ class TextLoader():
 
 
     def process(self, input_file, vocab_file, tensor_file):
-        # you had /ted but ... I think that was wrong?
-        # self.ted = TED("/ted")
         self.ted = TED("ted")
         self.ted.normalize_profiles_locally()
+        self.ted.normalize_views()
         self.ted.generate_vocab()
         
         self.vocab_size = self.ted.vocab_size
@@ -57,16 +56,21 @@ class TextLoader():
     def next_batch(self):
         if self.pointer < self.ted.talk_counts[self.profile_pointer]:
             profile = self.ted.profiles[self.profile_pointer]
+            views = self.ted.views[self.profile_pointer]
         else:
             self.pointer += 1
             profile = self.ted.profiles[self.profile_pointer]
+            views = self.ted.views[self.profile_pointer]
         x, y = self.x_batches[self.pointer], self.y_batches[self.pointer]
         self.pointer += 1
         if self.pointer >= len( self.x_batches ):
             self.reset_batch_pointer()
 
         profile = np.array([profile for i in range(self.batch_size)])
-        return x, y, profile
+        views = np.array([views for i in range(self.batch_size)])
+        views = np.reshape(views, (self.batch_size, 1))
+
+        return x, y, profile, views
 
 
     def random_batch(self):

@@ -203,7 +203,7 @@ class WordRNN():
             self.data_loader.reset_batch_pointer()
 
             for i in range(self.data_loader.num_batches): 
-                x, y, profile_vec = self.data_loader.next_batch()
+                x, y, profile_vec, _ = self.data_loader.next_batch()
 
                 # we have to feed in the individual states of the MultiRNN cell
                 feed = {self.in_ph: x, self.targ_ph: y, self.profile: profile_vec}
