@@ -27,9 +27,9 @@ class ProfileDiscriminator:
         tf.reset_default_graph()
         self.createGraph()
 
-        # self.sess = None
+        self.sess = tf.Session()
+        self.sess.run(tf.global_variables_initializer())
         self.path = "./pd_tf_logs"
-        # self.sess.run(tf.global_variables_initializer())
         self.summary_writer = tf.summary.FileWriter(self.path)
         self.saver = tf.train.Saver()
 
@@ -187,9 +187,9 @@ if __name__ == "__main__":
     # profile_discriminator.train()
     bs = 4
     sl = 3
-    profile_discriminator = ProfileDiscriminator(restore=True,
-                    sample_batch_size=bs, sample_sequence_length=sl)
-    dl = TextLoader(".", bs, sl)
-    x, y, profile_vec, _ = dl.next_batch()
-    print(x)
-    print(profile_discriminator.compute_profile(x))
+    profile_discriminator = ProfileDiscriminator(sample_batch_size=bs, sample_sequence_length=sl)
+    profile_discriminator.train()
+    # dl = TextLoader(".", bs, sl)
+    # x, y, profile_vec, _ = dl.next_batch()
+    # print(x)
+    # print(profile_discriminator.compute_profile(x))

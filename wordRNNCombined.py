@@ -202,6 +202,7 @@ class WordRNNCombined():
         for p in probs:
             valid = False
             while not valid:
+                print("Not valid")
                 if argm:
                     sample = np.argmax(p)
                 else:
@@ -247,17 +248,17 @@ class WordRNNCombined():
                 lt = retval[1]
                 state = retval[2:]
 
-                if i%100==0:
+                if i%1==0:
                     print "%d %d\t%.4f" % (j, i, lt) 
                     lts.append( lt )
 
-                if i%1000==0:
+                if i%5==0:
                     # print self.sample(num=160)
                     print "\n-------------------------------"
-                    print "SAMPLE WITH TEMPLATE:", self.sample_with_template(num=49, prime='he', argm=False)
-                    print "\nSAMPLE W/O TEMPLATE:", self.sample(num=49, prime='he', argm=False)
-                    print "\nARGMAX WITH TEMPLATE:", self.sample_with_template(num=49, prime='he', argm=True)
-                    print "\nARGMAX W/O TEMPLATE:", self.sample(num=49, prime='he', argm=True)
+                    print "SAMPLE WITH TEMPLATE:", self.sample_with_template(num=5, prime='he', argm=False)
+                    # print "\nSAMPLE W/O TEMPLATE:", self.sample(num=5, prime='he', argm=False)
+                    # print "\nARGMAX WITH TEMPLATE:", self.sample_with_template(num=5, prime='he', argm=True)
+                    # print "\nARGMAX W/O TEMPLATE:", self.sample(num=5, prime='he', argm=True)
                     print "-------------------------------\n"
 
             print("Completed epoch: {}, saving weights...".format(j))

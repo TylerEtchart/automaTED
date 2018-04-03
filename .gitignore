@@ -5,3 +5,7 @@ data.npy
 *.pyc
 *.pkl
 input.txt
+Dockerfile
+requirements.txt
+pd_tf*
+trained_*
