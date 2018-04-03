@@ -26,9 +26,9 @@ class ProfileDiscriminator:
 
         # tf.reset_default_graph()
         
-	#with tf.variable_scope("wordRNN"):
-	#    self.createGraph()
-	self.createGraph()
+        # with tf.variable_scope("wordRNN"):
+        #     self.createGraph()
+        self.createGraph()
 
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())

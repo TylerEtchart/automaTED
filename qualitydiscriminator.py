@@ -26,10 +26,12 @@ class QualityDiscriminator:
         self.sample_sequence_length = sample_sequence_length
 
         # tf.reset_default_graph()
-        self.createGraph()
+        with tf.variable_scope("wordRNN"):
+            self.createGraph()
+        # self.createGraph()
 
-        # self.sess = tf.Session()
-        # self.sess.run(tf.global_variables_initializer())
+        self.sess = tf.Session()
+        self.sess.run(tf.global_variables_initializer())
         self.path = "./qd_tf_logs"
         self.summary_writer = tf.summary.FileWriter(self.path)
         self.saver = tf.train.Saver()
