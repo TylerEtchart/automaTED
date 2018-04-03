@@ -47,8 +47,8 @@ class TemplateManager:
 
         tag_index = 0
         while tag_index < len(tags):
-            if self.template[self.template_position] in self.list_of_punctuation:
-                punctuation = self.formatted_punctuation[self.template[self.template_position]]
+            if self.template[local_template_position] in self.list_of_punctuation:
+                punctuation = self.formatted_punctuation[self.template[local_template_position]]
                 local_sentence += punctuation
                 local_template_position += 1
             else:
@@ -70,12 +70,12 @@ class TemplateManager:
 
         tag_index = 0
         while tag_index < len(tags):
-            if self.template[self.template_position] in self.list_of_punctuation:
-                punctuation = self.formatted_punctuation[self.template[self.template_position]]
+            if self.template[local_template_position] in self.list_of_punctuation:
+                punctuation = self.formatted_punctuation[self.template[local_template_position]]
                 local_sentence += punctuation
                 local_template_position += 1
             else:
-                if tags[tag_index] != self.template[self.template_position]:
+                if tags[tag_index] != self.template[local_template_position]:
                     return False
                 else:
                     local_sentence += " " + words[tag_index]
