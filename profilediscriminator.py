@@ -25,10 +25,13 @@ class ProfileDiscriminator:
         self.sample_sequence_length = sample_sequence_length
 
         # tf.reset_default_graph()
-        self.createGraph()
+        
+	#with tf.variable_scope("wordRNN"):
+	#    self.createGraph()
+	self.createGraph()
 
-        # self.sess = tf.Session()
-        # self.sess.run(tf.global_variables_initializer())
+        self.sess = tf.Session()
+        self.sess.run(tf.global_variables_initializer())
         self.path = "./pd_tf_logs"
         self.summary_writer = tf.summary.FileWriter(self.path)
         self.saver = tf.train.Saver()
@@ -52,7 +55,7 @@ class ProfileDiscriminator:
         # -------------------------------------------
         # Computation Graph
 
-        with tf.variable_scope("RNN"):
+        with tf.variable_scope("profRNN"):
             cells = [rnn_cell.GRUCell(self.state_dim) for i in range(self.num_layers)]
             # cells = [GORUCell( state_dim, str(i) ) for i in range(num_layers)]
 
@@ -98,7 +101,7 @@ class ProfileDiscriminator:
         #     self.s_probs = tf.nn.softmax(tf.matmul(s_outputs[-1], W) + b)
 
     def compute_profile_from_within(self, x):
-        with tf.variable_scope("RNN", reuse=True):
+        with tf.variable_scope("profRNN", reuse=True):
             # inputs
             self.s_inputs = x
             s_onehot = tf.one_hot(self.s_inputs, self.vocab_size, name="s_input_onehot")

@@ -41,7 +41,7 @@ class FinalWordRNN():
         self.sess = tf.Session()
 
         self.sess.run(tf.global_variables_initializer())
-        # self.profile_discriminator.restore_weights(self.sess)
+        self.profile_discriminator.restore_weights(self.sess)
         # self.quality_discriminator.restore_weights(self.sess)
         self.path = "./word_tf_logs"
         self.summary_writer = tf.summary.FileWriter(self.path)
