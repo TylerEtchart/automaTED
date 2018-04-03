@@ -54,13 +54,12 @@ class TextLoader():
 
 
     def next_batch(self):
-        if self.pointer < self.ted.talk_counts[self.profile_pointer]:
-            profile = self.ted.profiles[self.profile_pointer]
-            views = self.ted.views[self.profile_pointer]
-        else:
+        if self.pointer >= self.ted.talk_counts[self.profile_pointer]:
             self.profile_pointer += 1
-            profile = self.ted.profiles[self.profile_pointer]
-            views = self.ted.views[self.profile_pointer]
+            
+        profile = self.ted.profiles[self.profile_pointer]
+        views = self.ted.views[self.profile_pointer]
+
         x, y = self.x_batches[self.pointer], self.y_batches[self.pointer]
         self.pointer += 1
         if self.pointer >= len( self.x_batches ):
