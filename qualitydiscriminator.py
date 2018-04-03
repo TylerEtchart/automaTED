@@ -53,7 +53,7 @@ class QualityDiscriminator:
         # -------------------------------------------
         # Computation Graph
 
-        with tf.variable_scope("RNN"):
+        with tf.variable_scope("QualRNN"):
             cells = [rnn_cell.GRUCell(self.state_dim) for i in range(self.num_layers)]
             # cells = [GORUCell( state_dim, str(i) ) for i in range(num_layers)]
 
@@ -78,7 +78,7 @@ class QualityDiscriminator:
         # -------------------------------------------
         # Compute Graph
 
-        # with tf.variable_scope("RNN", reuse=True):
+        # with tf.variable_scope("QualRNN", reuse=True):
         #     # inputs
         #     self.s_inputs = tf.placeholder(tf.int32,
         #             [self.sample_batch_size, self.sample_sequence_length], name='s_inputs')
@@ -99,7 +99,7 @@ class QualityDiscriminator:
         #     self.s_probs = tf.nn.softmax(tf.matmul(s_outputs[-1], W) + b)
 
     def compute_profile_from_within(self, x):
-        with tf.variable_scope("RNN", reuse=True):
+        with tf.variable_scope("QualRNN", reuse=True):
             # inputs
             self.s_inputs = x
             s_onehot = tf.one_hot(self.s_inputs, self.vocab_size, name="s_input_onehot")
