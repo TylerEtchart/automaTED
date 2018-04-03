@@ -201,7 +201,9 @@ class WordRNNCombined():
         probs = self.sample_probs(num, prime)
         for p in probs:
             valid = False
+            tries = 0
             while not valid:
+                tries += 1
                 print("Not valid")
                 if argm:
                     sample = np.argmax(p)
@@ -210,7 +212,10 @@ class WordRNNCombined():
                 word = self.data_loader.vocab_list[sample]
 
                 # TODO: Limit number of attempts
-                valid = self.tm.match_word(word=word)
+                if tries > 15:
+                    valid = True
+                else:
+                    valid = self.tm.match_word(word=word)
                 
                 # renormalize
                 p[sample] = 0.0

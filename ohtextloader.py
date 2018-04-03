@@ -28,7 +28,7 @@ class TextLoader():
         self.ted = TED("ted")
         self.ted.normalize_profiles_locally()
         self.ted.normalize_views()
-        self.ted.generate_vocab()
+        self.ted.generate_tokenized_vocab()
         
         self.vocab_size = self.ted.vocab_size
         self.vocab_list = self.ted.vocab_list
