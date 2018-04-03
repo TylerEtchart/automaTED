@@ -9,8 +9,9 @@ from tensorflow.python.ops import rnn_cell
 import tensorflow.contrib.legacy_seq2seq as seq2seq # I don't want to use legacy...
 from goru.goru import GORUCell
 from profilediscriminator import ProfileDiscriminator
+from qualitydiscriminator import QualityDiscriminator
 
-class WordRNNCombined():
+class FinalWordRNN():
 
     def __init__(self, restore):
         # -------------------------------------------
@@ -30,12 +31,17 @@ class WordRNNCombined():
             sample_batch_size=self.batch_size,
             sample_sequence_length=self.sequence_length)
 
+        self.quality_discriminator = QualityDiscriminator(
+            sample_batch_size=self.batch_size,
+            sample_sequence_length=self.sequence_length)
+
         # tf.reset_default_graph()
         self.createGraph()
         self.sess = tf.Session()
 
         self.sess.run(tf.global_variables_initializer())
-        # self.profile_discriminator.restore_weights(self.sess)
+        self.profile_discriminator.restore_weights(self.sess)
+        self.quality_discriminator.restore_weights(self.sess)
         self.path = "./word_tf_logs"
         self.summary_writer = tf.summary.FileWriter(self.path)
         self.saver = tf.train.Saver()
@@ -88,21 +94,24 @@ class WordRNNCombined():
                                         initializer=tf.constant_initializer(0.0))
             logits = [tf.matmul(o, W) + b for o in outputs]
 
-            # get profile loss
             # I think these should be sequence_length list of [batch_size, vocab_size]
             samples = [tf.argmax(input=l, axis=1) for l in logits]
             sample = tf.stack(samples)
-            # logits = tf.Print(input_=logits, data=[sample], message="Print sample:")
-            # print(sample.eval())
+
+            # get profile loss
             computed_profile = self.profile_discriminator.compute_profile_from_within(sample)
             profile_loss = tf.reduce_mean((computed_profile - self.profile)**2)
+
+            # get quality loss
+            computed_quality = self.quality_discriminator.compute_profile_from_within(sample)
+            quality_loss = -tf.reduce_mean(computed_quality)
 
             # call seq2seq.sequence_loss
             const_weights = [tf.ones([self.batch_size]) for i in xrange(self.sequence_length)]
             seq2seq_loss = seq2seq.sequence_loss(logits, targets, const_weights)
 
             # combine loss
-            self.loss = seq2seq_loss + profile_loss
+            self.loss = seq2seq_loss + profile_loss + quality_loss
             self.loss_summary = tf.summary.scalar("loss", self.loss)
 
             # create a training op using the Adam optimizer
@@ -277,5 +286,5 @@ class WordRNNCombined():
 
 if __name__ == "__main__":
     # sess = tf.Session()
-    wordRNN = WordRNNCombined(restore=False)
+    wordRNN = FinalWordRNN(restore=False)
     wordRNN.train()

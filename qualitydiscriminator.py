@@ -28,9 +28,9 @@ class QualityDiscriminator:
         tf.reset_default_graph()
         self.createGraph()
 
-        self.sess = tf.Session()
+        # self.sess = tf.Session()
+        # self.sess.run(tf.global_variables_initializer())
         self.path = "./qd_tf_logs"
-        self.sess.run(tf.global_variables_initializer())
         self.summary_writer = tf.summary.FileWriter(self.path)
         self.saver = tf.train.Saver()
 
