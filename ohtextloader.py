@@ -58,7 +58,7 @@ class TextLoader():
             profile = self.ted.profiles[self.profile_pointer]
             views = self.ted.views[self.profile_pointer]
         else:
-            self.pointer += 1
+            self.profile_pointer += 1
             profile = self.ted.profiles[self.profile_pointer]
             views = self.ted.views[self.profile_pointer]
         x, y = self.x_batches[self.pointer], self.y_batches[self.pointer]
