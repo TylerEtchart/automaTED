@@ -25,10 +25,11 @@ class WordRNNCombined():
         self.vocab_size = self.data_loader.vocab_size  # dimension of one-hot encodings
 
         # self.sess = tf.InteractiveSession()
-
-        self.profile_discriminator = ProfileDiscriminator(
-            sample_batch_size=self.batch_size,
-            sample_sequence_length=self.sequence_length)
+        
+	with tf.variable_scope("wordRNN"):
+            self.profile_discriminator = ProfileDiscriminator(
+                sample_batch_size=self.batch_size,
+                sample_sequence_length=self.sequence_length)
 
         # tf.reset_default_graph()
         self.createGraph()

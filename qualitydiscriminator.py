@@ -25,7 +25,7 @@ class QualityDiscriminator:
         self.sample_batch_size = sample_batch_size
         self.sample_sequence_length = sample_sequence_length
 
-        tf.reset_default_graph()
+        # tf.reset_default_graph()
         self.createGraph()
 
         # self.sess = tf.Session()
