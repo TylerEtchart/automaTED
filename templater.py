@@ -39,13 +39,34 @@ class TemplateManager:
         return tags, words
 
 
-    def match_word(self, word):
+    def add_word(self, word):
         tags, words = self.get_tags(word)
 
         local_template_position = self.template_position
         local_sentence = self.sentence
 
-        # TODO: Limit number of attempts
+        tag_index = 0
+        while tag_index < len(tags):
+            if self.template[self.template_position] in self.list_of_punctuation:
+                punctuation = self.formatted_punctuation[self.template[self.template_position]]
+                local_sentence += punctuation
+                local_template_position += 1
+            else:
+                local_sentence += " " + words[tag_index]
+                tag_index += 1
+                local_template_position += 1
+
+        self.template_position = local_template_position
+        self.sentence = local_sentence
+        
+        return True
+
+
+    def match_word(self, word):
+        tags, words = self.get_tags(word)
+
+        local_template_position = self.template_position
+        local_sentence = self.sentence
 
         tag_index = 0
         while tag_index < len(tags):

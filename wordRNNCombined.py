@@ -204,16 +204,15 @@ class WordRNNCombined():
             tries = 0
             while not valid:
                 tries += 1
-                print("Not valid")
                 if argm:
                     sample = np.argmax(p)
                 else:
                     sample = np.random.choice(self.vocab_size, p=p)
                 word = self.data_loader.vocab_list[sample]
 
-                # TODO: Limit number of attempts
                 if tries > 15:
                     valid = True
+                    self.tm.add_word(word=word)
                 else:
                     valid = self.tm.match_word(word=word)
                 
