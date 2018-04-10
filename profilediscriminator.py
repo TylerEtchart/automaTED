@@ -14,9 +14,9 @@ class ProfileDiscriminator:
 
         self.batch_size = 50
         self.sequence_length = 50
-        self.state_dim = 256
+        self.state_dim = 512
         self.profile_size = 14
-        self.num_layers = 2
+        self.num_layers = 3
         self.data_loader = TextLoader(".", self.batch_size, self.sequence_length)
         self.vocab_size = self.data_loader.vocab_size  # dimension of one-hot encodings
 
@@ -30,11 +30,12 @@ class ProfileDiscriminator:
         #     self.createGraph()
         self.createGraph()
 
-        self.sess = tf.Session()
-        self.sess.run(tf.global_variables_initializer())
+        # self.sess = tf.Session()
+        # self.sess.run(tf.global_variables_initializer())
         self.path = "./pd_tf_logs"
         self.summary_writer = tf.summary.FileWriter(self.path)
-        self.saver = tf.train.Saver()
+        profRNN_vars =  tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='wordRNN/profRNN')
+        self.saver = tf.train.Saver(profRNN_vars)
 
 
     def restore_weights(self, sess):
@@ -89,16 +90,16 @@ class ProfileDiscriminator:
         #     s_onehot = [tf.squeeze(input_, [1]) for input_ in s_onehot]
 
         #     # initialize
-        #     self.s_initial_state = stacked_cells.zero_state(self.sample_batch_size, tf.float32)
+        #     self.s_initial_state = self.stacked_cells.zero_state(self.sample_batch_size, tf.float32)
 
         #     # call seq2seq.rnn_decoder
         #     s_outputs, self.s_final_state = seq2seq.rnn_decoder(s_onehot,
-        #                                         self.s_initial_state, stacked_cells)
+        #                                         self.s_initial_state, self.stacked_cells)
 
         #     # transform the list of state outputs to a list of logits.
         #     # use a linear transformation.
         #     # s_outputs = tf.reshape(s_outputs, [1, self.state_dim])
-        #     self.s_probs = tf.nn.softmax(tf.matmul(s_outputs[-1], W) + b)
+        #     self.s_probs = tf.nn.softmax(tf.matmul(s_outputs[-1], self.W) + self.b)
 
     def compute_profile_from_within(self, x):
         with tf.variable_scope("profRNN", reuse=True):
@@ -150,7 +151,7 @@ class ProfileDiscriminator:
 
             for i in range(self.data_loader.num_batches):
                 
-                x, y, profile_vec, _ = self.data_loader.next_batch()
+                x, y, profile_vec, _ = self.data_loader.random_batch()
 
                 # we have to feed in the individual states of the MultiRNN cell
                 feed = {self.in_ph: x, self.target_profile: profile_vec}
@@ -185,14 +186,21 @@ class ProfileDiscriminator:
 
 
 if __name__ == "__main__":
-    # sess = tf.Session()
-    # profile_discriminator = ProfileDiscriminator(restore=False)
-    # profile_discriminator.train()
-    bs = 4
-    sl = 3
+    bs = 1
+    sl = 10
+
     profile_discriminator = ProfileDiscriminator(sample_batch_size=bs, sample_sequence_length=sl)
-    profile_discriminator.train()
-    # dl = TextLoader(".", bs, sl)
-    # x, y, profile_vec, _ = dl.next_batch()
-    # print(x)
-    # print(profile_discriminator.compute_profile(x))
+    # profile_discriminator.train()
+    
+    profile_discriminator.restore_weights(profile_discriminator.sess)
+    dl = TextLoader(".", bs, sl)
+    print(dl.num_batches)
+
+    for i in range(10000):
+        x, y, profile, _ = dl.next_batch()
+
+    print(x)
+    print(profile)
+    output = profile_discriminator.compute_profile_from_without(x)
+    print(output)
+    print(np.mean((output - profile)**2))

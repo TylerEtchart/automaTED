@@ -54,7 +54,8 @@ class TextLoader():
 
 
     def next_batch(self):
-        if self.pointer >= self.ted.talk_counts[self.profile_pointer]:
+        word_count = self.pointer * self.batch_size * self.seq_length
+        if word_count >= self.ted.talk_counts[self.profile_pointer]:
             self.profile_pointer += 1
             
         profile = self.ted.profiles[self.profile_pointer]
@@ -73,8 +74,24 @@ class TextLoader():
 
 
     def random_batch(self):
-        pointer = np.random.randint( len( self.x_batches ) )
-        return self.x_batches[pointer], self.y_batches[pointer]
+        pointer = np.random.randint(len(self.x_batches))
+
+        word_count = pointer * self.batch_size * self.seq_length
+        profile_pointer = 0
+        while word_count < self.ted.talk_counts[profile_pointer]:
+            profile_pointer += 1
+        profile_pointer -= 1
+ 
+        x = self.x_batches[pointer]
+        y = self.y_batches[pointer]
+
+        profile = self.ted.profiles[profile_pointer]
+        profile = np.array([profile for i in range(self.batch_size)])
+        views = self.ted.views[profile_pointer]
+        views = np.array([views for i in range(self.batch_size)])
+        views = np.reshape(views, (self.batch_size, 1))
+
+        return x, y, profile, views
 
 
     def reset_batch_pointer(self):

@@ -209,5 +209,6 @@ class TED:
 
 if __name__ == "__main__":
     t = TED("")
-    t.generate_tokenized_vocab()
-    print(t.vocab_size)
+    # t.generate_tokenized_vocab()
+    t.normalize_views()
+    print(np.mean(t.views))

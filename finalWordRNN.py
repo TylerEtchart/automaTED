@@ -19,15 +19,15 @@ class FinalWordRNN():
 
         self.batch_size = 10
         self.sequence_length = 10
-        self.state_dim = 256
+        self.state_dim = 1048
         self.profile_size = 14
-        self.num_layers = 2
+        self.num_layers = 3
         self.data_loader = TextLoader(".", self.batch_size, self.sequence_length)
         self.vocab_size = self.data_loader.vocab_size  # dimension of one-hot encodings
 
         # self.sess = tf.InteractiveSession()
 	
-	with tf.variable_scope("wordRNN"):
+        with tf.variable_scope("wordRNN"):
             self.profile_discriminator = ProfileDiscriminator(
                 sample_batch_size=self.batch_size,
                 sample_sequence_length=self.sequence_length)
@@ -42,7 +42,7 @@ class FinalWordRNN():
 
         self.sess.run(tf.global_variables_initializer())
         self.profile_discriminator.restore_weights(self.sess)
-        # self.quality_discriminator.restore_weights(self.sess)
+        self.quality_discriminator.restore_weights(self.sess)
         self.path = "./word_tf_logs"
         self.summary_writer = tf.summary.FileWriter(self.path)
         self.saver = tf.train.Saver()
@@ -68,12 +68,21 @@ class FinalWordRNN():
         # Computation Graph
 
         with tf.variable_scope("wordRNN"):
+            with tf.variable_scope("layer1"):
+                cells = [rnn_cell.GRUCell(self.state_dim) for i in range(self.num_layers)]
+                stacked_cells = rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
+
+            with tf.variable_scope("layer2"):
+                cells2 = [rnn_cell.GRUCell(self.state_dim) for i in range(self.num_layers)]
+                stacked_cells2 = rnn_cell.MultiRNNCell(cells2, state_is_tuple=True)
+
+
             # define cells
-            cells = [rnn_cell.GRUCell(self.state_dim) for i in range(self.num_layers)]
+            # cells = [rnn_cell.GRUCell(self.state_dim) for i in range(self.num_layers)]
             # cells = [GORUCell(state_dim, str(i)) for i in range(num_layers)]
 
             # stack and initialize cells
-            stacked_cells = rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
+            # stacked_cells = rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
             self.initial_state = stacked_cells.zero_state(self.batch_size, tf.float32)
 
             # mix in profile vector
@@ -85,7 +94,11 @@ class FinalWordRNN():
             mixed_inputs = [tf.nn.relu(tf.matmul( i, W_mix ) + b_mix) for i in inputs]
 
             # call seq2seq.rnn_decoder
-            outputs, self.final_state = seq2seq.rnn_decoder(mixed_inputs, self.initial_state, stacked_cells)
+            # outputs, self.final_state = seq2seq.rnn_decoder(mixed_inputs, self.initial_state, stacked_cells)
+            with tf.variable_scope("layer1"):
+                intermediate_outputs, intermediate_state = seq2seq.rnn_decoder(mixed_inputs, self.initial_state, stacked_cells)
+            with tf.variable_scope("layer2"):
+                outputs, self.final_state = seq2seq.rnn_decoder(intermediate_outputs, intermediate_state, stacked_cells2)
             
             # transform the list of state outputs to a list of logits.
             # use a linear transformation.
@@ -101,23 +114,27 @@ class FinalWordRNN():
 
             # get profile loss
             computed_profile = self.profile_discriminator.compute_profile_from_within(sample)
-            profile_loss = tf.reduce_mean((computed_profile - self.profile)**2)
+            self.profile_loss = tf.reduce_mean((computed_profile - self.profile)**2)
+            self.profile_loss_summary = tf.summary.scalar("profile_loss", self.profile_loss)
 
             # get quality loss
             computed_quality = self.quality_discriminator.compute_profile_from_within(sample)
-            quality_loss = -tf.reduce_mean(computed_quality)
+            self.quality_loss = -tf.reduce_mean(computed_quality)
+            self.quality_loss_summary = tf.summary.scalar("quality_loss", self.quality_loss)
 
             # call seq2seq.sequence_loss
             const_weights = [tf.ones([self.batch_size]) for i in xrange(self.sequence_length)]
-            seq2seq_loss = seq2seq.sequence_loss(logits, targets, const_weights)
+            self.seq2seq_loss = seq2seq.sequence_loss(logits, targets, const_weights)
+            self.seq2seq_loss_summary = tf.summary.scalar("seq2seq_loss", self.seq2seq_loss)
 
             # combine loss
-            self.loss = seq2seq_loss + profile_loss + quality_loss
+            self.loss = self.seq2seq_loss + self.profile_loss + self.quality_loss
             self.loss_summary = tf.summary.scalar("loss", self.loss)
 
             # create a training op using the Adam optimizer
-            profile_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='RNN')
-            trainable_vars = [x for x in tf.trainable_variables() if x not in profile_vars]
+            profile_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='wordRNN/profRNN')
+            quality_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='wordRNN/qualRNN')
+            trainable_vars = [x for x in tf.trainable_variables() if x not in profile_vars and x not in quality_vars]
             self.optim = tf.train.AdamOptimizer(0.001, beta1=0.5).minimize(self.loss, var_list=trainable_vars)
 
 
@@ -256,17 +273,25 @@ class FinalWordRNN():
                 # 0 is None (triggered by the optim op)
                 # 1 is the loss
                 # 2+ are the new final states of the MultiRNN cell
-                retval, loss_summary = self.sess.run([ops, self.loss_summary], feed_dict=feed)
+                retval, loss_summary, seq2seq_loss_summary, profile_loss_summary, quality_loss_summary = self.sess.run([ops,
+                                                                                                                        self.loss_summary,
+                                                                                                                        self.seq2seq_loss_summary,
+                                                                                                                        self.profile_loss_summary,
+                                                                                                                        self.quality_loss_summary],
+                                                                                                                        feed_dict=feed)
                 self.summary_writer.add_summary(loss_summary, (j * self.data_loader.num_batches) + i)
+                self.summary_writer.add_summary(seq2seq_loss_summary, (j * self.data_loader.num_batches) + i)
+                self.summary_writer.add_summary(profile_loss_summary, (j * self.data_loader.num_batches) + i)
+                self.summary_writer.add_summary(quality_loss_summary, (j * self.data_loader.num_batches) + i)
 
                 lt = retval[1]
                 state = retval[2:]
 
-                if i%1==0:
+                if i%10==0:
                     print "%d %d\t%.4f" % (j, i, lt) 
                     lts.append( lt )
 
-                if i%5==0:
+                if i%100==0:
                     # print self.sample(num=160)
                     print "\n-------------------------------"
                     print "SAMPLE WITH TEMPLATE:", self.sample_with_template(num=10, prime='he', argm=False)
