@@ -78,8 +78,9 @@ class TextLoader():
 
         word_count = pointer * self.batch_size * self.seq_length
         profile_pointer = 0
-        while word_count < self.ted.talk_counts[profile_pointer]:
+        while profile_pointer < len(self.ted.talk_counts) and word_count < self.ted.talk_counts[profile_pointer]:
             profile_pointer += 1
+        
         profile_pointer -= 1
  
         x = self.x_batches[pointer]

@@ -195,7 +195,7 @@ if __name__ == "__main__":
     quality_discriminator.restore_weights(quality_discriminator.sess)
     dl = TextLoader(".", bs, sl)
 
-    for i in range(10000):
+    for i in range(1):
         x, y, _, views = dl.next_batch()
 
     print(x)

@@ -196,7 +196,7 @@ if __name__ == "__main__":
     dl = TextLoader(".", bs, sl)
     print(dl.num_batches)
 
-    for i in range(10000):
+    for i in range(1):
         x, y, profile, _ = dl.next_batch()
 
     print(x)

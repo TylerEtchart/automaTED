@@ -135,7 +135,7 @@ class FinalWordRNN():
             profile_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='wordRNN/profRNN')
             quality_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='wordRNN/qualRNN')
             trainable_vars = [x for x in tf.trainable_variables() if x not in profile_vars and x not in quality_vars]
-            self.optim = tf.train.AdamOptimizer(0.001, beta1=0.5).minimize(self.loss, var_list=trainable_vars)
+            self.optim = tf.train.AdamOptimizer(0.001).minimize(self.loss, var_list=trainable_vars)
 
 
         # -------------------------------------------
@@ -158,8 +158,12 @@ class FinalWordRNN():
             s_mixed_inputs = tf.nn.relu(tf.matmul(s_onehot, W_mix) + b_mix)
 
             # call seq2seq.rnn_decoder
-            s_outputs, self.s_final_state = seq2seq.rnn_decoder([s_mixed_inputs],
-                                                self.s_initial_state, stacked_cells)
+            with tf.variable_scope("layer1", reuse=True):
+                s_intermediate_outputs, s_intermediate_state = seq2seq.rnn_decoder([s_mixed_inputs], self.s_initial_state, stacked_cells)
+            with tf.variable_scope("layer2", reuse=True):
+                s_outputs, self.s_final_state = seq2seq.rnn_decoder(s_intermediate_outputs, s_intermediate_state, stacked_cells2)
+            # s_outputs, self.s_final_state = seq2seq.rnn_decoder([s_mixed_inputs],
+            #                                     self.s_initial_state, stacked_cells)
 
             # transform the list of state outputs to a list of logits.
             # use a linear transformation.
@@ -311,6 +315,14 @@ class FinalWordRNN():
 
 
 if __name__ == "__main__":
-    # sess = tf.Session()
     wordRNN = FinalWordRNN(restore=False)
     wordRNN.train()
+
+    # wordRNN = FinalWordRNN(restore=True)
+    # for i in range(10):
+    #     print "\n-------------------------------"
+    #     print "SAMPLE WITH TEMPLATE:", wordRNN.sample_with_template(num=50, prime='he', argm=False)
+    #     print "\nSAMPLE W/O TEMPLATE:", wordRNN.sample(num=50, prime='he', argm=False)
+    #     print "\nARGMAX WITH TEMPLATE:", wordRNN.sample_with_template(num=50, prime='he', argm=True)
+    #     print "\nARGMAX W/O TEMPLATE:", wordRNN.sample(num=50, prime='he', argm=True)
+    #     print "-------------------------------\n"
