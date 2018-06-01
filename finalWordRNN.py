@@ -68,11 +68,11 @@ class FinalWordRNN():
         # Computation Graph
 
         with tf.variable_scope("wordRNN"):
-            with tf.variable_scope("layer1"):
+            with tf.variable_scope("layer1", initializer=tf.contrib.layers.xavier_initializer()):
                 cells = [rnn_cell.GRUCell(self.state_dim) for i in range(self.num_layers)]
                 stacked_cells = rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
 
-            with tf.variable_scope("layer2"):
+            with tf.variable_scope("layer2", initializer=tf.contrib.layers.xavier_initializer()):
                 cells2 = [rnn_cell.GRUCell(self.state_dim) for i in range(self.num_layers)]
                 stacked_cells2 = rnn_cell.MultiRNNCell(cells2, state_is_tuple=True)
 
@@ -87,10 +87,10 @@ class FinalWordRNN():
 
             # mix in profile vector
             inputs = [tf.concat([i, self.profile], 1) for i in inputs]
-            W_mix = tf.get_variable( "W_mix", [self.vocab_size + 14, self.vocab_size], tf.float32,
-                                        tf.random_normal_initializer( stddev=0.02 ) )
-            b_mix = tf.get_variable( "b_mix", [self.vocab_size],
-                                        initializer=tf.constant_initializer( 0.0 ))
+            W_mix = tf.get_variable("W_mix", [self.vocab_size + 14, self.vocab_size], tf.float32,
+                                        tf.contrib.layers.xavier_initializer())
+            b_mix = tf.get_variable("b_mix", [self.vocab_size],
+                                        initializer=tf.constant_initializer(0.0))
             mixed_inputs = [tf.nn.relu(tf.matmul( i, W_mix ) + b_mix) for i in inputs]
 
             # call seq2seq.rnn_decoder
@@ -103,7 +103,7 @@ class FinalWordRNN():
             # transform the list of state outputs to a list of logits.
             # use a linear transformation.
             W = tf.get_variable("W", [self.state_dim, self.vocab_size], tf.float32,
-                                        tf.random_normal_initializer( stddev=0.02))
+                                        tf.contrib.layers.xavier_initializer())
             b = tf.get_variable("b", [self.vocab_size],
                                         initializer=tf.constant_initializer(0.0))
             logits = [tf.matmul(o, W) + b for o in outputs]
@@ -174,7 +174,7 @@ class FinalWordRNN():
     def sample_probs(self, num, prime):
         # prime the pump
         sample_profile = np.array([1.0] * 14)
-        sample_profile[3] = 100.0
+        sample_profile[6] = 100.0
         sample_profile /= np.sum(sample_profile)
         sample_profile = sample_profile.reshape((1, 14))
 
@@ -230,6 +230,7 @@ class FinalWordRNN():
         self.tm.generate_template(primer=prime, length=num)
         # sample words
         probs = self.sample_probs(num, prime)
+        times_given_up = 0
         for p in probs:
             valid = False
             tries = 0
@@ -242,6 +243,8 @@ class FinalWordRNN():
                 word = self.data_loader.vocab_list[sample]
 
                 if tries > 15:
+                    # print("Ignored POS RNN!")
+                    times_given_up += 1
                     valid = True
                     self.tm.add_word(word=word)
                 else:
@@ -250,6 +253,7 @@ class FinalWordRNN():
                 # renormalize
                 p[sample] = 0.0
                 p /= np.sum(p)
+        print("TIMES GIVEN UP:", times_given_up)
         return self.tm.format_sentence()
 
 
@@ -315,14 +319,14 @@ class FinalWordRNN():
 
 
 if __name__ == "__main__":
-    wordRNN = FinalWordRNN(restore=False)
-    wordRNN.train()
+    # wordRNN = FinalWordRNN(restore=False)
+    # wordRNN.train()
 
-    # wordRNN = FinalWordRNN(restore=True)
-    # for i in range(10):
-    #     print "\n-------------------------------"
-    #     print "SAMPLE WITH TEMPLATE:", wordRNN.sample_with_template(num=50, prime='he', argm=False)
-    #     print "\nSAMPLE W/O TEMPLATE:", wordRNN.sample(num=50, prime='he', argm=False)
-    #     print "\nARGMAX WITH TEMPLATE:", wordRNN.sample_with_template(num=50, prime='he', argm=True)
-    #     print "\nARGMAX W/O TEMPLATE:", wordRNN.sample(num=50, prime='he', argm=True)
-    #     print "-------------------------------\n"
+    wordRNN = FinalWordRNN(restore=True)
+    for i in range(10):
+        print "\n-------------------------------"
+        print "SAMPLE WITH TEMPLATE:", wordRNN.sample_with_template(num=200, prime='the', argm=False)
+        print "\nSAMPLE W/O TEMPLATE:", wordRNN.sample(num=200, prime='the', argm=False)
+        print "\nARGMAX WITH TEMPLATE:", wordRNN.sample_with_template(num=200, prime='the', argm=True)
+        print "\nARGMAX W/O TEMPLATE:", wordRNN.sample(num=200, prime='the', argm=True)
+        print "-------------------------------\n"

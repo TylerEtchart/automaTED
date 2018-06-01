@@ -14,10 +14,10 @@ class QualityDiscriminator:
 
         self.batch_size = 50
         self.sequence_length = 50
-        self.state_dim = 256
+        self.state_dim = 512
         self.profile_size = 14
         self.view_size = 1
-        self.num_layers = 2
+        self.num_layers = 3
         self.data_loader = TextLoader(".", self.batch_size, self.sequence_length)
         self.vocab_size = self.data_loader.vocab_size  # dimension of one-hot encodings
 
